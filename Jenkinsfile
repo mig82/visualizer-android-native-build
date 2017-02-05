@@ -76,6 +76,6 @@ node('android'){
 		}
 	}
 	stage('Clean up'){
-		step([$class: 'WsCleanup'])
+		deleteDir()
 	}
 }
