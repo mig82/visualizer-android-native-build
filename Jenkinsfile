@@ -14,6 +14,10 @@ node('android'){
 			gitOrg,
 			gitProject
 
+	def jenkinsWorkspace
+
+	String hBuildGlobalProps = "HeadlessBuild-Global.properties"
+
 	stage('Validate inputs'){
 
 		visualizerAppName = VISUALIZER_APP_NAME
@@ -37,6 +41,9 @@ node('android'){
 
 	stage('init'){
 		echo('Building Android phone native')
+
+		jenkinsWorkspace = pwd() 
+
 		if(isUnix()){
 			sh("hostname")
 			sh("whereis git")
@@ -46,6 +53,37 @@ node('android'){
 			bat("hostname")
 			bat("where git.exe")
 			bat("git --version")
+		}
+	}
+
+
+	stage('Prepare global headless build properties'){
+
+		node('nix'){
+
+				//Create ${hBuildGlobalProps} from scratch.
+				sh("rm -f ${hBuildGlobalProps}")
+				sh("echo 'workspace.location=${jenkinsWorkspace}' >> ${hBuildGlobalProps}")
+				sh("echo 'eclipse.equinox.path=${VISUALIZER_HOME}/${EQUINOX_PATH}' >> ${hBuildGlobalProps}")
+				sh("echo 'imagemagic.home=${IMAGEMAGIC_HOME}' >> ${hBuildGlobalProps}")
+				sh("echo 'android.home=${ANDROID_HOME}' >> ${hBuildGlobalProps}")
+
+				//Writes blank BlackBerry settings into the ${hBuildGlobalProps} just in case Visualiser validates they have to be there.
+				sh("echo 'bb10.ndk.home=' >> ${hBuildGlobalProps}")
+				sh("echo 'bb10.signing.keys.home=' >> ${hBuildGlobalProps}")
+				sh("echo 'bb10.emulator.ip=' >> ${hBuildGlobalProps}")
+				sh("echo 'bb10.emulator.password=' >> ${hBuildGlobalProps}")
+				sh("echo 'bb10.vmware.home=' >> ${hBuildGlobalProps}")
+
+				stash (includes: './${hBuildGlobalProps}', name: 'BUILD_GLOBAL_PROPS')
+		}
+		unstash('BUILD_GLOBAL_PROPS')
+		if(isUnix()){
+			sh("ls -la")
+			sh("cat ./${hBuildGlobalProps}")
+		}
+		else{
+			bat("dir")
 		}
 	}
 	
