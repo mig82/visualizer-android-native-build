@@ -16,7 +16,11 @@ node('android'){
 
 	def jenkinsWorkspace
 
-	String hBuildGlobalProps = "HeadlessBuild-Global.properties"
+	String 	hBuildGlobalProps,
+			visualizerHome,
+			equinoxJar,
+			imageMagicHome,
+			androidHome
 
 	stage('Validate inputs'){
 
@@ -28,7 +32,9 @@ node('android'){
 
 		gitCredentialsId = GIT_CREDENTIALS
 		mobileFabricCredentialsId = MOBILE_FABRIC_CREDENTIALS
-		
+	}
+
+	stage('Prepare Git variables'){	
 		//This section parses the git url -e.g.: https://github.com/acme/foo.git
 		String[] gitParams = gitVisualizerAppRepo.split('/')
 		gitProtocol = gitParams[0] // 'https:'|'ssh:'
@@ -37,6 +43,23 @@ node('android'){
 		gitDomain = gitParams[2] //The dns of the git server or 'github.com'.
 		gitOrg = gitParams[3] //The git organisation or user -e.g.: 'acme'
 		gitProject = gitParams[4].split('\\.')[0] //The name of the project, just before '.git' -e.g.: 'foo'
+	}
+	
+	stage('Prepare Visualizer variables'){
+		hBuildGlobalProps = "HeadlessBuild-Global.properties"
+
+		if(isUnix()){
+			visualizerHome = MAC_VISUALIZER_HOME
+			imageMagicHome = MAC_IMAGEMAGIC_HOME
+			androidHome = MAC_ANDROID_HOME
+		}
+		else{
+			visualizerHome = WIN_VISUALIZER_HOME
+			imageMagicHome = WIN_IMAGEMAGIC_HOME
+			androidHome = WIN_ANDROID_HOME
+		}
+
+		equinoxJar = EQUINOX_JAR
 	}
 
 	stage('init'){
@@ -64,9 +87,9 @@ node('android'){
 				//Create ${hBuildGlobalProps} from scratch.
 				sh("rm -f ${hBuildGlobalProps}")
 				sh("echo 'workspace.location=${jenkinsWorkspace}' >> ${hBuildGlobalProps}")
-				sh("echo 'eclipse.equinox.path=${VISUALIZER_HOME}/${EQUINOX_PATH}' >> ${hBuildGlobalProps}")
-				sh("echo 'imagemagic.home=${IMAGEMAGIC_HOME}' >> ${hBuildGlobalProps}")
-				sh("echo 'android.home=${ANDROID_HOME}' >> ${hBuildGlobalProps}")
+				sh("echo 'eclipse.equinox.path=${visualizerHome}/plugins/${equinoxJar}' >> ${hBuildGlobalProps}")
+				sh("echo 'imagemagic.home=${imageMagicHome}' >> ${hBuildGlobalProps}")
+				sh("echo 'android.home=${androidHome}' >> ${hBuildGlobalProps}")
 
 				//Writes blank BlackBerry settings into the ${hBuildGlobalProps} just in case Visualiser validates they have to be there.
 				sh("echo 'bb10.ndk.home=' >> ${hBuildGlobalProps}")
