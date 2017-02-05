@@ -42,10 +42,12 @@ node('android'){
 		if(isUnix()){
 			sh("hostname")
 			sh("whereis git")
+			sh("git --version")
 		}
 		else{
 			bat("hostname")
 			bat("where git.exe")
+			bat("git --version")
 		}
 	}
 	
