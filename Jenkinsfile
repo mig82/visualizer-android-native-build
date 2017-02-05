@@ -48,17 +48,12 @@ node('android'){
 	stage('Prepare Visualizer variables'){
 		hBuildGlobalProps = "HeadlessBuild-Global.properties"
 
-		if(isUnix()){
-			visualizerHome = MAC_VISUALIZER_HOME
-			imageMagicHome = MAC_IMAGEMAGIC_HOME
-			androidHome = MAC_ANDROID_HOME
-		}
-		else{
-			visualizerHome = WIN_VISUALIZER_HOME
-			imageMagicHome = WIN_IMAGEMAGIC_HOME
-			androidHome = WIN_ANDROID_HOME
-		}
+		//These env vars are set for each node.
+		visualizerHome = VISUALIZER_HOME
+		imageMagicHome = IMAGEMAGIC_HOME
+		androidHome = ANDROID_HOME
 
+		//These env vars are set globally.
 		equinoxJar = EQUINOX_JAR
 	}
 
@@ -97,25 +92,24 @@ node('android'){
 				sh("echo 'bb10.emulator.ip=' >> ${hBuildGlobalProps}")
 				sh("echo 'bb10.emulator.password=' >> ${hBuildGlobalProps}")
 				sh("echo 'bb10.vmware.home=' >> ${hBuildGlobalProps}")
+				sh("cat ${hBuildGlobalProps}")
 
-				stash (includes: './${hBuildGlobalProps}', name: 'BUILD_GLOBAL_PROPS')
+				stash (includes: "${hBuildGlobalProps}", name: "BUILD_GLOBAL_PROPS")
 		}
-		unstash('BUILD_GLOBAL_PROPS')
+		unstash("BUILD_GLOBAL_PROPS")
 		if(isUnix()){
 			sh("ls -la")
-			sh("cat ./${hBuildGlobalProps}")
+			sh("cat ${hBuildGlobalProps}")
 		}
 		else{
 			bat("dir")
+			bat("more ${hBuildGlobalProps}")
 		}
 	}
 	
 	stage('Clone git repo'){
 		
-		dir("${visualizerAppName}"){
-			pwd()
-			deleteDir()
-		}
+		sh("rm -rf ${visualizerAppName}")
 
 		withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: gitCredentialsId, usernameVariable: 'gitUser', passwordVariable: 'gitPassword']]) {		
 			//If password contains '@' character it must be encoded to avoid being mistaken by the '@' that separates user:password@url expression.
