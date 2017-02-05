@@ -27,9 +27,7 @@ node('android'){
 		
 		//This section parses the git url -e.g.: https://github.com/acme/foo.git
 		String[] gitParams = gitVisualizerAppRepo.split('/')
-		echo("gitParams class=${gitParams.getClass()}")
-		//def gitProtocol = 'https:'
-		gitProtocol = gitParams[0]
+		gitProtocol = gitParams[0] // 'https:'|'ssh:'
 		echo "gitProtocol=[${gitProtocol}]"
 		//gitParams[1] is empty string between '//' after 'https:'
 		gitDomain = gitParams[2] //The dns of the git server or 'github.com'.
