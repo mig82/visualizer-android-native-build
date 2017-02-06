@@ -26,7 +26,12 @@ node('android'){
 	//TODO: Remove this emporary fix. Needed because git is not on the PATH for the windows slave we have. Env var GIT_HOME is defined at windows node level.
 	String gitHome 
 	stage('Patch windows git'){
-		gitHome = GIT_HOME?GIT_HOME:""
+		try{
+			gitHome = GIT_HOME
+		}
+		catch(groovy.lang.MissingPropertyException e){
+			gitHome = ""
+		}
 	}
 
 	stage('Validate inputs'){
