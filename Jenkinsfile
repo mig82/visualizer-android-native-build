@@ -14,7 +14,8 @@ node('android'){
 			gitOrg,
 			gitProject
 
-	def jenkinsWorkspace
+	def jenkinsWorkspace,
+		visualizerWorkspace
 
 	String 	hBuildGlobalProps,
 			visualizerHome,
@@ -22,7 +23,7 @@ node('android'){
 			imageMagicHome,
 			androidHome
 
-	//TODO: Remove this temporary fix. Needed because git is not on the PATH for the windows slave we have. Env var GIT_HOME is defined at windows node level.
+	//TODO: Remove this emporary fix. Needed because git is not on the PATH for the windows slave we have. Env var GIT_HOME is defined at windows node level.
 	String gitHome 
 	stage('Patch windows git'){
 		gitHome = GIT_HOME?GIT_HOME:""
@@ -51,7 +52,7 @@ node('android'){
 		gitProject = gitParams[4].split('\\.')[0] //The name of the project, just before '.git' -e.g.: 'foo'
 	}
 	
-	stage('Prepare Visualizer variables'){
+	stage('Verify environment variables'){
 		hBuildGlobalProps = "HeadlessBuild-Global.properties"
 
 		//These env vars are set for each node.
@@ -66,8 +67,7 @@ node('android'){
 	stage('init'){
 		echo('Building Android phone native')
 
-		jenkinsWorkspace = pwd() 
-
+		//Let's check what box we're on and that we have all command line tools we need.
 		if(isUnix()){
 			sh("hostname")
 			sh("whereis git")
@@ -81,13 +81,20 @@ node('android'){
 	}
 
 
-	stage('Prepare global headless build properties'){
+	stage('Prepare Visualizer workspace'){
 
+		//Visualizer uses a workspace shared for all apps, but here for added isolation we will dynamically create a workspace for each app.
+		jenkinsWorkspace = pwd()
+		visualizerWorkspace = "${jenkinsWorkspace}/vis-workspaces/work-${visualizerAppName}"
+		echo ("Jenkins workspace='${jenkinsWorkspace}'")
+		echo ("Visualizer workspace='${visualizerWorkspace}'")
+
+		//We borrow a Mac or Linux box to write the HeadlessBuild-Global.properties file.
 		node('nix'){
 
 				//Create ${hBuildGlobalProps} from scratch.
 				sh("rm -f ${hBuildGlobalProps}")
-				sh("echo 'workspace.location=${jenkinsWorkspace}' >> ${hBuildGlobalProps}")
+				sh("echo 'workspace.location=${visualizerWorkspace}' >> ${hBuildGlobalProps}")
 				sh("echo 'eclipse.equinox.path=${visualizerHome}/plugins/${equinoxJar}' >> ${hBuildGlobalProps}")
 				sh("echo 'imagemagic.home=${imageMagicHome}' >> ${hBuildGlobalProps}")
 				sh("echo 'android.home=${androidHome}' >> ${hBuildGlobalProps}")
@@ -100,36 +107,46 @@ node('android'){
 				sh("echo 'bb10.vmware.home=' >> ${hBuildGlobalProps}")
 				sh("cat ${hBuildGlobalProps}")
 
-				stash (includes: "${hBuildGlobalProps}", name: "BUILD_GLOBAL_PROPS")
+				stash (includes: "${hBuildGlobalProps}", name: "BUILD_GLOBAL_PROPS_STASH_KEY")
 		}
-		unstash("BUILD_GLOBAL_PROPS")
-		if(isUnix()){
-			sh("ls -la")
-			sh("cat ${hBuildGlobalProps}")
-		}
-		else{
-			bat("dir")
-			bat("more ${hBuildGlobalProps}")
+		
+		dir(visualizerWorkspace){
+			unstash("BUILD_GLOBAL_PROPS_STASH_KEY")
+		
+			if(isUnix()){
+				sh("ls -la")
+				sh("cat ${hBuildGlobalProps}")
+			}
+			else{
+				bat("dir")
+				bat("more ${hBuildGlobalProps}")
+			}
 		}
 	}
 	
 	stage('Clone git repo'){
 		
-		//Remove the Visualizer project's root directory left here by the previous build.
-		isUnix()?sh("rm -rf ${visualizerAppName}"):bat("if exist {visualizerAppName} rd /q /s ${visualizerAppName}")
+		//Step into the Visualizer workspace for this app.
+		dir(visualizerWorkspace){
+			//Remove the Visualizer project's root directory left here by the previous build.
+			isUnix()?sh("rm -rf ${visualizerAppName}"):bat("if exist {visualizerAppName} rd /q /s ${visualizerAppName}")
 
-		withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: gitCredentialsId, usernameVariable: 'gitUser', passwordVariable: 'gitPassword']]) {		
-			//If password contains '@' character it must be encoded to avoid being mistaken by the '@' that separates user:password@url expression.
-			String encodedGitPassword = gitPassword.contains("@") ? URLEncoder.encode(gitPassword) : gitPassword
-			
-			def pwd = pwd()
-			echo("Current dir=${pwd}")
+			//Clone the Visualizer project into a new root directory named after the app.
+			withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: gitCredentialsId, usernameVariable: 'gitUser', passwordVariable: 'gitPassword']]) {		
+				//If password contains '@' character it must be encoded to avoid being mistaken by the '@' that separates user:password@url expression.
+				String encodedGitPassword = gitPassword.contains("@") ? URLEncoder.encode(gitPassword) : gitPassword
+				
+				//Let's just check we're where we expect to be.
+				def pwd = pwd()
+				echo("Current dir=${pwd}")
 
-			//Clone the repository containting the Visualizer project.
-			String cloneCmd = "${gitHome}git clone ${gitProtocol}//${gitUser}:${encodedGitPassword}@${gitDomain}/${gitOrg}/${gitProject}.git ${visualizerAppName}"
-			isUnix()?sh(cloneCmd):bat(cloneCmd)
-			
-			isUnix()?sh("ls -la"):bat("dir")
+				//Clone the repository containting the Visualizer project.
+				String cloneCmd = "${gitHome}git clone ${gitProtocol}//${gitUser}:${encodedGitPassword}@${gitDomain}/${gitOrg}/${gitProject}.git ${visualizerAppName}"
+				isUnix()?sh(cloneCmd):bat(cloneCmd)
+				
+				//This should list the HeadlessBuild-Global.properties file and the root directory for the app.
+				isUnix()?sh("ls -laR"):bat("dir /s")
+			}
 		}
 	}
 	stage('Clean up'){
