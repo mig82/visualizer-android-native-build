@@ -134,7 +134,7 @@ node('android'){
 		//Step into the Visualizer workspace for this app.
 		dir(visualizerWorkspace){
 			//Remove the Visualizer project's root directory left here by the previous build.
-			isUnix()?sh("rm -rf ${visualizerAppName}"):bat("if exist {visualizerAppName} rd /q /s ${visualizerAppName}")
+			isUnix()?sh("rm -rf ${visualizerAppName}"):bat("if exist ${visualizerAppName} rd /q /s ${visualizerAppName}")
 
 			//Clone the Visualizer project into a new root directory named after the app.
 			withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: gitCredentialsId, usernameVariable: 'gitUser', passwordVariable: 'gitPassword']]) {		
