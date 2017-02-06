@@ -180,18 +180,20 @@ node('android'){
 		
 		def plugins = parseKonyPluginsXML(pluginsXml)
 
-		echo("plugin.pluginInfo class:${plugins.pluginInfo.getClass()}")
+		echo(" *** Fetching plugins START ***")
 		int pluginsCount = plugins.pluginInfo.size()
 		for(int k = 0; k < pluginsCount; k++){
 			def pluginInfo = plugins.pluginInfo[k]
 		
 			assert pluginInfo.name() == 'pluginInfo'
-			def plugId = pluginInfo.@plugin-id
-			def version = pluginInfo.@version-no
+			String plugId = pluginInfo["@plugin-id"]
+			String version = pluginInfo["@version-no"]
+			String plugin = "${plugId}_${version}.jar"
 			//assert plugId.trim() != ''
 			//assert version.trim() != ''
-			echo("Download plugin ${plugId}_${version}")
+			echo(plugin)
 		}
+		echo(" *** Fetching plugins END ***")
 
 	}
 
