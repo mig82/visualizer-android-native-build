@@ -1,3 +1,14 @@
+import groovy.util.XmlSlurper
+
+@NonCPS
+def parseKonyPluginsXML(xmlText){
+	
+	def plugins = new XmlSlurper().parseText(xmlText)
+	assert plugins.name() == 'plugins'
+	
+	return plugins
+}
+
 node('android'){
 	
 	String  visualizerAppName,
@@ -34,7 +45,7 @@ node('android'){
 		}
 	}
 
-	stage('Validate inputs'){
+	stage('Validate input params'){
 
 		visualizerAppName = VISUALIZER_APP_NAME
 		mobileFabricAppName = MOBILE_FABRIC_APP_NAME
@@ -57,7 +68,7 @@ node('android'){
 		gitProject = gitParams[4].split('\\.')[0] //The name of the project, just before '.git' -e.g.: 'foo'
 	}
 	
-	stage('Verify environment variables'){
+	stage('Verify Jenkins environment variables'){
 		hBuildGlobalProps = "HeadlessBuild-Global.properties"
 
 		//These env vars are set for each node.
@@ -69,7 +80,7 @@ node('android'){
 		equinoxJar = EQUINOX_JAR
 	}
 
-	stage('init'){
+	stage('Check command line tools'){
 		echo('Building Android phone native')
 
 		//Let's check what box we're on and that we have all command line tools we need.
@@ -154,6 +165,36 @@ node('android'){
 			}
 		}
 	}
+
+	stage('Get Visualizer plugins'){
+
+		String pluginsXml
+		//Step into the Visualizer workspace for this app.
+		dir(visualizerWorkspace){
+			pluginsXml = readFile("${visualizerAppName}/konyplugins.xml")	
+		}
+
+		//Let's see what plugins we need to build this Visualizer app.
+		echo("Kony plugins required by ${visualizerAppName}/konyplugins.xml")
+		echo(pluginsXml)
+		
+		def plugins = parseKonyPluginsXML(pluginsXml)
+
+		echo("plugin.pluginInfo class:${plugins.pluginInfo.getClass()}")
+		int pluginsCount = plugins.pluginInfo.size()
+		for(int k = 0; k < pluginsCount; k++){
+			def pluginInfo = plugins.pluginInfo[k]
+		
+			assert pluginInfo.name() == 'pluginInfo'
+			def plugId = pluginInfo.@plugin-id
+			def version = pluginInfo.@version-no
+			//assert plugId.trim() != ''
+			//assert version.trim() != ''
+			echo("Download plugin ${plugId}_${version}")
+		}
+
+	}
+
 	stage('Clean up'){
 		deleteDir()
 	}
