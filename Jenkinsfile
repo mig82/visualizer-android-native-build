@@ -22,6 +22,12 @@ node('android'){
 			imageMagicHome,
 			androidHome
 
+	//TODO: Remove this temporary fix. Needed because git is not on the PATH for the windows slave we have. Env var GIT_HOME is defined at windows node level.
+	String gitHome 
+	stage('Patch windows git'){
+		gitHome = GIT_HOME?GIT_HOME:""
+	}
+
 	stage('Validate inputs'){
 
 		visualizerAppName = VISUALIZER_APP_NAME
@@ -69,8 +75,8 @@ node('android'){
 		}
 		else{
 			bat("hostname")
-			bat("where git.exe")
-			bat("git --version")
+			//bat("where git.exe") //Can't do this until git gets added to the Windows box PATH.
+			bat("${gitHome}git --version")
 		}
 	}
 
@@ -109,25 +115,21 @@ node('android'){
 	
 	stage('Clone git repo'){
 		
-		sh("rm -rf ${visualizerAppName}")
+		//Remove the Visualizer project's root directory left here by the previous build.
+		isUnix()?sh("rm -rf ${visualizerAppName}"):bat("if exist {visualizerAppName} rd /q /s ${visualizerAppName}")
 
 		withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: gitCredentialsId, usernameVariable: 'gitUser', passwordVariable: 'gitPassword']]) {		
 			//If password contains '@' character it must be encoded to avoid being mistaken by the '@' that separates user:password@url expression.
 			String encodedGitPassword = gitPassword.contains("@") ? URLEncoder.encode(gitPassword) : gitPassword
 			
 			def pwd = pwd()
-			echo("Current directory=${pwd}")
+			echo("Current dir=${pwd}")
 
 			//Clone the repository containting the Visualizer project.
-			echo("cloning")
-			sh ("git clone ${gitProtocol}//${gitUser}:${encodedGitPassword}@${gitDomain}/${gitOrg}/${gitProject}.git ${visualizerAppName}")
-			echo("done cloning")
-			if(isUnix()){
-				sh("ls -la")
-			}
-			else{
-				bat("dir")
-			}
+			String cloneCmd = "${gitHome}git clone ${gitProtocol}//${gitUser}:${encodedGitPassword}@${gitDomain}/${gitOrg}/${gitProject}.git ${visualizerAppName}"
+			isUnix()?sh(cloneCmd):bat(cloneCmd)
+			
+			isUnix()?sh("ls -la"):bat("dir")
 		}
 	}
 	stage('Clean up'){
