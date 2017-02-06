@@ -150,7 +150,7 @@ node('android'){
 				isUnix()?sh(cloneCmd):bat(cloneCmd)
 				
 				//This should list the HeadlessBuild-Global.properties file and the root directory for the app.
-				isUnix()?sh("ls -laR"):bat("dir /s")
+				isUnix()?sh("ls -la"):bat("dir")
 			}
 		}
 	}
